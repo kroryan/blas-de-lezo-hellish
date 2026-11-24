@@ -114,6 +114,42 @@ body_verts = {i for p in mesh.data.polygons if p.index not in head_faces for i i
 seam = head_verts & body_verts
 for i in head_verts: per_vertex[i] = {'Head': 1.}
 
+# Hanging hair below the rigid head: the head's share fades smoothly along the
+# locks. It is 1 at the head seam and falls off over HAIR_FADE (geodesic
+# distance), and it is 0 where the hair touches the coat or armour, rising over
+# CONTACT_FADE. The hair stays attached to the back, the shoulders keep their
+# own weights, and a head turn is spread along the locks instead of folding
+# them at one line.
+import heapq
+HAIR_FADE, CONTACT_FADE = .30, .08
+nbr = [[] for _ in mesh.data.vertices]
+for e in mesh.data.edges:
+    a, b = e.vertices; d = (mesh.data.vertices[a].co - mesh.data.vertices[b].co).length
+    nbr[a].append((b, d)); nbr[b].append((a, d))
+def is_hair(j): return per_vertex[j].get('Head', 0) + per_vertex[j].get('Neck', 0) > .05
+def geodesic(src, limit):
+    dist = {i: 0. for i in src}; heap = [(0., i) for i in src]
+    while heap:
+        d, i = heapq.heappop(heap)
+        if d > dist.get(i, 1e9): continue
+        for j, dd in nbr[i]:
+            if j in head_verts or not is_hair(j): continue
+            nd = d + dd
+            if nd < dist.get(j, 1e9) and nd <= limit:
+                dist[j] = nd; heapq.heappush(heap, (nd, j))
+    return dist
+d_seam = geodesic(seam, HAIR_FADE)
+band = [i for i in d_seam if i not in head_verts]
+bset = set(band)
+contact = [i for i in band if any(j not in head_verts and not is_hair(j) for j, _ in nbr[i])]
+d_coat = geodesic(contact, CONTACT_FADE)
+def smooth(x): x = min(1., max(0., x)); return x * x * (3 - 2 * x)
+for i in band:
+    s = (1 - smooth(d_seam[i] / HAIR_FADE)) * smooth(d_coat.get(i, CONTACT_FADE) / CONTACT_FADE)
+    w = {n: v * (1 - s) for n, v in per_vertex[i].items()}; w['Head'] = w.get('Head', 0) + s
+    per_vertex[i] = w
+print('HAIR_FADE head_faces', len(head_faces), 'band_vertices', len(band), 'coat_contact', len(contact), flush=True)
+
 while mesh.vertex_groups: mesh.vertex_groups.remove(mesh.vertex_groups[0])
 groups = {}
 for i, w in enumerate(per_vertex):

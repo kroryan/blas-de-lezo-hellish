@@ -22,7 +22,13 @@ public static class BlasDeLezoFppBuilder {
   var animator = new FsmGameObject("MartaAnimator") { UseVariable = true };
   // The native toTPP event can reactivate these four stock objects during
   // a wide shot, including the original face. Scope lookups to this fighter.
-  var stockNames = new[] { "headMESH", "CC_Base_Teeth", "CC_Base_Tongue", "polySurface3" };
+  var stockNames = new[] { "headMESH", "CC_Base_Teeth", "CC_Base_Tongue", "polySurface3",
+   // Marta's wound overlays are copies of her own body shape. With a custom
+   // skin they would float over it as a second, transparent body when hit.
+   "DecalArmpitSlice", "DecalBloody", "DecalBloodyLeft", "DecalBloodyRight", "DecalChoppedHand",
+   "DecalChoppedHead", "DecalHead", "DecalHeadSmall", "DecalLeftArm", "DecalLeftForeArm",
+   "DecalMarfaGrab_A", "DecalMarfaGrab_B", "DecalRightArm", "DecalRightForeArm",
+   "DecalSpine1", "DecalSpine1Small", "DecalStomach" };
   var stockParts = stockNames.Select(name => new FsmGameObject(name) { UseVariable = true }).ToArray();
   fsm.Variables.GameObjectVariables = new[] { loader, animator }.Concat(stockParts).ToArray();
   var finished = FsmEvent.GetFsmEvent("FINISHED");
